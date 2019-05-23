@@ -1,6 +1,3 @@
-
-import java.lang.reflect.ParameterizedType
-
 /**
  * 订阅
  *
@@ -28,12 +25,13 @@ object Subscriber {
     @JvmStatic
     fun send(data: Any) {
         for (observer in observers) {
-            val genericSuperclass = observer::class.java.genericSuperclass
-            val type = genericSuperclass as? ParameterizedType
-            val arguments = type?.actualTypeArguments
-            if (arguments?.get(0) == data.javaClass) {
-                val receive = observer.receive(data)
-                if (receive) break
+            val clazz = observer.receiver.javaClass
+            clazz.methods.forEach {
+                val parameterTypes = it.parameterTypes
+                if ("receive" == it.name && parameterTypes.size == 1 && data.javaClass == parameterTypes[0]) {
+                    val receive = observer.receive(data)
+                    if (receive) return
+                }
             }
         }
     }
@@ -50,7 +48,7 @@ interface Receiver<T> {
 
 /**接收器代理
  */
-private class ReceiverImp<T>(private val receiver: Receiver<T>) {
+private class ReceiverImp<T>(val receiver: Receiver<T>) {
     /**接收数据
      * @param data kotlin的安全特性，这里设置data为Any类型
      *@return 是否中断
